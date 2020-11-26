@@ -1,3 +1,9 @@
+;;; Code:
+
+(require 'dash)
+(require 'ts)
+(require 'org-ql)
+
 (defsubst org-upcoming-modeline-parse-ts (org-ts-string)
   "Get ts object for Org timestamp string ORG-TS-STRING but only if it has hour/minute part."
   (pcase-let* ((`(,second ,minute ,hour ,day ,month ,year)
@@ -53,3 +59,7 @@
                         (ts-format "%Y-%m-%d %H:%M" event-time)))))
 
 (add-to-list 'global-mode-string '(:eval (org-upcoming-modeline)) 'append)
+
+(provide 'org-upcoming-modeline)
+
+;;; org-upcoming-modeline.el ends here
