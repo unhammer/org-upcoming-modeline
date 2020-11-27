@@ -56,41 +56,85 @@
   :group 'org-upcoming-modeline
   :type '(alist :value-type string))
 
-(defcustom org-upcoming-modeline-on-idle-seconds 5
+(defcustom org-upcoming-modeline-recompute-after-idle 5
   "Minimum seconds of idle-time before updating upcoming event in the mode line."
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-interval 5
+  "Minimum seconds between updating event time in the mode line."
+  :group 'org-upcoming-modeline
+  :type 'integer)
+
+(defcustom org-upcoming-modeline-days-ahead 1
+  "How many days to look into the future for events."
+  :group 'org-upcoming-modeline
+  :type 'integer)
 
 
-(defvar org-upcoming-modeline-string nil
-  "Value from last `org-upcoming-modeline--recompute'.")
+(defconst org-upcoming-modeline-string nil)
 ;;;###autoload(put 'org-upcoming-modeline-string 'risky-local-variable t)
 (put 'org-upcoming-modeline-string 'risky-local-variable t)
 
-(defvar org-upcoming-modeline--timer nil)
+(defvar org-upcoming-modeline--current-event nil
+  "Value from last `org-upcoming-modeline--find-upcoming'.")
 
-(defun org-upcoming-modeline--recompute ()
-  "Make a mode line string of the first upcoming org timestamp.
-Store it along in `org-upcoming-modeline-string'."
+(defvar org-upcoming-modeline--find-event-timer nil)
+(defvar org-upcoming-modeline--set-string-timer nil)
+
+
+
+(defun org-upcoming-modeline--set-string ()
+  "Set `org-upcoming-modeline-string' based on `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline-string
+   (when org-upcoming-modeline--current-event
+     (pcase-let* ((now (ts-now))
+                  (`(,time ,heading ,marker) org-upcoming-modeline--current-event)
+                  (seconds-until (ts-difference time now))
+                  ;; NOTE: Using day of year to avoid end-of-month turnover in day number.
+                  (days-until (- (ts-doy time)
+                                 (ts-doy now)))
+                  (time-string (cond ((<= seconds-until org-upcoming-modeline-duration-threshold)
+                                      (ts-human-format-duration seconds-until 'abbreviate))
+                                     ((= 0 days-until)
+                                      (ts-format "%H:%M" time))
+                                     ((= 1 days-until)
+                                      (concat (cdr (assoc 'tomorrow org-upcoming-modeline-l10n))
+                                              (ts-format " %H:%M" time)))
+                                     (t      ; > 1 days-until
+                                      (ts-format "%a %H:%M" time)))))
+       (propertize (format " ⏰ %s: %s" time-string heading)
+                   'face 'org-level-4
+                   'help-echo (format "%s left until %s"
+                                      (ts-human-format-duration seconds-until)
+                                      heading)
+                   'org-upcoming-marker marker
+                   'mouse-face 'mode-line-highlight
+                   'local-map org-upcoming-modeline-map)))))
+
+(defun org-upcoming-modeline--find-event ()
+  "Find the first upcoming org event, with timestamp and marker.
+Store it in `org-upcoming-modeline--current-event'."
+  (setq
+   org-upcoming-modeline--current-event
    (when-let*
        ((now (ts-now))
         (items (remove
                 nil
                 (org-ql-select (org-agenda-files)
-                  '(ts-active :from 0 :to 1)
+                  `(ts-active :from 0
+                              :to ,org-upcoming-modeline-days-ahead)
                   :action '(when-let* ((mark (point-marker))
                                        (bound (save-excursion (outline-next-heading) (point)))
                                        (time (save-excursion
-                                               (car (sort (cl-loop
-                                                           while (re-search-forward org-tsr-regexp bound 'noerror)
-                                                           for org-ts-string = (match-string 1)
-                                                           when org-ts-string
-                                                           for time = (org-upcoming-modeline--parse-ts org-ts-string)
-                                                           when time collect time)
-                                                          #'ts<)))))
+                                               (car
+                                                (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
+                                                               for org-ts-string = (match-string 1)
+                                                               when org-ts-string
+                                                               for time = (org-upcoming-modeline--parse-ts org-ts-string)
+                                                               when time collect time)
+                                                      #'ts<)))))
                              (cons time mark))))))
      (pcase-let*
          ((`(,time . ,marker) (car (seq-sort-by #'car #'ts< items)))
@@ -115,7 +159,8 @@ Store it along in `org-upcoming-modeline-string'."
                                       heading)
                    'org-upcoming-marker marker
                    'mouse-face 'mode-line-highlight
-                   'local-map org-upcoming-modeline-map)))))
+                   'local-map org-upcoming-modeline-map)
+       (list time heading marker)))))
 
 ;;;###autoload
 (define-minor-mode org-upcoming-modeline-mode
@@ -123,23 +168,29 @@ Store it along in `org-upcoming-modeline-string'."
   :group 'org-upcoming-modeline
   :global t
   (if org-upcoming-modeline-mode
+      ;; Turn on:
       (progn
         (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
-        (setq org-upcoming-modeline--timer (run-with-idle-timer
-                                            org-upcoming-modeline-on-idle-seconds
-                                            'repeat
-                                            #'org-upcoming-modeline--recompute))
+        (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
+                                                      org-upcoming-modeline-recompute-after-idle
+                                                      'repeat
+                                                      #'org-upcoming-modeline--find-event))
+        (setq org-upcoming-modeline--set-string-timer (run-with-timer
+                                                       1
+                                                       org-upcoming-modeline-interval
+                                                       #'org-upcoming-modeline--set-string))
         ;; Also compute immediately on first starting the mode, for that first-run feel:
-        (org-upcoming-modeline--recompute))
+        (org-upcoming-modeline--find-event))
     ;; Turn off:
     (delq 'org-upcoming-modeline-string global-mode-string)
-    (when (timerp org-upcoming-modeline--timer)
-      (cancel-timer org-upcoming-modeline--timer))))
+    (when (timerp org-upcoming-modeline--find-event-timer)
+      (cancel-timer org-upcoming-modeline--find-event-timer))
+    (when (timerp org-upcoming-modeline--set-string-timer)
+      (cancel-timer org-upcoming-modeline--set-string-timer))))
 
 (defun org-upcoming-modeline-goto (event)
   "Show upcoming org EVENT."
   (interactive "e")
-  (setq foo-event event)
   (when-let* ((text (car (cl-fifth (cadr event)))) ; TODO there's gotta be some event api for this
               (marker (get-text-property 0 'org-upcoming-marker text)))
     (switch-to-buffer (marker-buffer marker))
