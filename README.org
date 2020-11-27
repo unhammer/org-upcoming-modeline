@@ -1,0 +1,14 @@
+#+TITLE: org-upcoming-modeline
+
+#+ATTR_HTML: :alt org-upcoming-modeline demo
+[[file:org-upcoming-modeline.gif][file:org-upcoming-modeline.gif]]
+
+#+begin_src emacs-lisp
+(use-package org-upcoming-modeline
+  :after org
+  :load-path "~/src/org-upcoming-modeline"
+  :config
+  (org-upcoming-modeline-mode))
+#+end_src
+
+See also =M-x customize-group RET org-upcoming-modeline=.
