@@ -71,6 +71,12 @@
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
+  "How long to snooze when mouse-3-clicking the modeline.
+Used by `org-upcoming-modeline-snooze'."
+  :group 'org-upcoming-modeline
+  :type 'integer)
+
 
 (defconst org-upcoming-modeline-string nil)
 ;;;###autoload(put 'org-upcoming-modeline-string 'risky-local-variable t)
@@ -106,7 +112,7 @@
                                       (ts-format "%a %H:%M" time)))))
        (propertize (format " ⏰ %s: %s" time-string heading)
                    'face 'org-level-4
-                   'help-echo (format "%s left until %s"
+                   'help-echo (format "%s left until %s (mouse-3 will snooze, mouse-1 will jump to task)"
                                       (ts-human-format-duration seconds-until)
                                       heading)
                    'org-upcoming-marker marker
@@ -139,27 +145,7 @@ Store it in `org-upcoming-modeline--current-event'."
      (pcase-let*
          ((`(,time . ,marker) (car (seq-sort-by #'car #'ts< items)))
           (heading (org-with-point-at marker
-                     (org-link-display-format (nth 4 (org-heading-components)))))
-          (seconds-until (ts-difference time now))
-          ;; NOTE: Using day of year to avoid end-of-month turnover in day number.
-          (days-until (- (ts-doy time) (ts-doy now)))
-          (time-string (cond ((<= seconds-until org-upcoming-modeline-duration-threshold)
-                              (ts-human-format-duration seconds-until 'abbreviate))
-                             ((= 0 days-until)
-                              (ts-format "%H:%M" time))
-                             ((= 1 days-until)
-                              (concat (cdr (assoc 'tomorrow org-upcoming-modeline-l10n))
-                                      (ts-format " %H:%M" time)))
-                             (t      ; > 1 days-until
-                              (ts-format "%a %H:%M" time)))))
-       (propertize (format " ⏰ %s: %s" time-string heading)
-                   'face 'org-level-4
-                   'help-echo (format "%s left until %s"
-                                      (ts-human-format-duration seconds-until)
-                                      heading)
-                   'org-upcoming-marker marker
-                   'mouse-face 'mode-line-highlight
-                   'local-map org-upcoming-modeline-map)
+                     (org-link-display-format (nth 4 (org-heading-components))))))
        (list time heading marker)))))
 
 ;;;###autoload
@@ -168,25 +154,32 @@ Store it in `org-upcoming-modeline--current-event'."
   :group 'org-upcoming-modeline
   :global t
   (if org-upcoming-modeline-mode
-      ;; Turn on:
-      (progn
-        (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
-        (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
-                                                      org-upcoming-modeline-recompute-after-idle
-                                                      'repeat
-                                                      #'org-upcoming-modeline--find-event))
-        (setq org-upcoming-modeline--set-string-timer (run-with-timer
-                                                       1
-                                                       org-upcoming-modeline-interval
-                                                       #'org-upcoming-modeline--set-string))
-        ;; Also compute immediately on first starting the mode, for that first-run feel:
-        (org-upcoming-modeline--find-event))
-    ;; Turn off:
-    (delq 'org-upcoming-modeline-string global-mode-string)
-    (when (timerp org-upcoming-modeline--find-event-timer)
-      (cancel-timer org-upcoming-modeline--find-event-timer))
-    (when (timerp org-upcoming-modeline--set-string-timer)
-      (cancel-timer org-upcoming-modeline--set-string-timer))))
+      (progn (org-upcoming-modeline--enable)
+             ;; Also compute immediately on first starting the mode, for that first-run feel:
+             (org-upcoming-modeline--find-event))
+    (org-upcoming-modeline--disable)))
+
+(defun org-upcoming-modeline--enable ()
+  "Add to mode line and start and store timers."
+  (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
+  (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
+                                                 org-upcoming-modeline-recompute-after-idle
+                                                 'repeat
+                                                 #'org-upcoming-modeline--find-event))
+  (setq org-upcoming-modeline--set-string-timer (run-with-timer
+                                                 1
+                                                 org-upcoming-modeline-interval
+                                                 #'org-upcoming-modeline--set-string)))
+
+(defun org-upcoming-modeline--disable ()
+  "Remove from mode line and stop timers."
+  (delq 'org-upcoming-modeline-string global-mode-string)
+  (when (timerp org-upcoming-modeline--find-event-timer)
+    (cancel-timer org-upcoming-modeline--find-event-timer))
+  (when (timerp org-upcoming-modeline--set-string-timer)
+    (cancel-timer org-upcoming-modeline--set-string-timer)))
+
+
 
 (defun org-upcoming-modeline-goto (event)
   "Show upcoming org EVENT."
@@ -201,9 +194,21 @@ Store it in `org-upcoming-modeline--current-event'."
     (org-cycle-hide-drawers 'children)
     (org-reveal)))
 
+(defun org-upcoming-modeline-snooze (event)
+  "Hide it for five minutes, ignore EVENT."
+  (interactive "e")
+  (org-upcoming-modeline--disable)
+  (force-mode-line-update)
+  (run-with-timer org-upcoming-modeline-snooze-seconds
+                  nil
+                  (lambda () (when org-upcoming-modeline
+                          (org-upcoming-modeline--enable)))))
+
 (defconst org-upcoming-modeline-map
   (let ((map (make-sparse-keymap)))
     (define-key map [mode-line down-mouse-1] 'org-upcoming-modeline-goto)
+    (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-goto)
+    (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-snooze)
     map))
 
 (provide 'org-upcoming-modeline)
