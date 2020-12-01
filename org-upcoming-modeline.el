@@ -71,6 +71,11 @@
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-face 'org-level-5
+  "What face to use on the event string in the mode line."
+  :group 'org-upcoming-modeline
+  :type 'face)
+
 (defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
   "How long to snooze when mouse-3-clicking the modeline.
 Used by `org-upcoming-modeline-snooze'."
@@ -111,7 +116,7 @@ Used by `org-upcoming-modeline-snooze'."
                                      (t      ; > 1 days-until
                                       (ts-format "%a %H:%M" time)))))
        (propertize (format " ⏰ %s: %s" time-string heading)
-                   'face 'org-level-4
+                   'face org-upcoming-modeline-face
                    'help-echo (format "%s left until %s (mouse-3 will snooze, mouse-1 will jump to task)"
                                       (ts-human-format-duration seconds-until)
                                       heading)
