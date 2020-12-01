@@ -130,8 +130,7 @@ Store it in `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline--current-event
    (when-let*
-       ((now (ts-now))
-        (items (remove
+       ((items (remove
                 nil
                 (org-ql-select (org-agenda-files)
                   `(ts-active :from 0
@@ -144,7 +143,9 @@ Store it in `org-upcoming-modeline--current-event'."
                                                                for org-ts-string = (match-string 1)
                                                                when org-ts-string
                                                                for time = (org-upcoming-modeline--parse-ts org-ts-string)
-                                                               when time collect time)
+                                                               when (and time
+                                                                         (ts>= time (ts-now)))
+                                                               collect time)
                                                       #'ts<)))))
                              (cons time mark))))))
      (pcase-let*
