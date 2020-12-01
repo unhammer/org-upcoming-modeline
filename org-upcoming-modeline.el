@@ -76,6 +76,13 @@
   "Org Upcoming Modeline face for normal circumstances"
   :group 'org-upcoming-modeline)
 
+(defface org-upcoming-modeline-soon-face
+  '((default
+      (:inherit org-upcoming-modeline-normal-face)
+      (:foreground "red")))
+  "Org Upcoming Modeline face for when an event is coming up soon."
+  :group 'org-upcoming-modeline)
+
 (defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
   "How long to snooze when mouse-3-clicking the modeline.
 Used by `org-upcoming-modeline-snooze'."
