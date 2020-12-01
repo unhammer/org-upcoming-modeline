@@ -73,7 +73,8 @@
 
 (defface org-upcoming-modeline-normal-face
   '((default (:inherit mode-line-emphasis)))
-  "Org Upcoming Modeline face for normal circumstances")
+  "Org Upcoming Modeline face for normal circumstances"
+  :group 'org-upcoming-modeline)
 
 (defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
   "How long to snooze when mouse-3-clicking the modeline.
