@@ -130,24 +130,25 @@ Store it in `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline--current-event
    (when-let*
-       ((items (remove
-                nil
-                (org-ql-select (org-agenda-files)
-                  `(ts-active :from 0
-                              :to ,org-upcoming-modeline-days-ahead)
-                  :action '(when-let* ((mark (point-marker))
-                                       (bound (save-excursion (outline-next-heading) (point)))
-                                       (time (save-excursion
-                                               (car
-                                                (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
-                                                               for org-ts-string = (match-string 1)
-                                                               when org-ts-string
-                                                               for time = (org-upcoming-modeline--parse-ts org-ts-string)
-                                                               when (and time
-                                                                         (ts>= time (ts-now)))
-                                                               collect time)
-                                                      #'ts<)))))
-                             (cons time mark))))))
+       ((items (remove-if #'(lambda (thing) (ts< (car thing) (ts-now)))
+                          (remove
+                           nil
+                           (org-ql-select (org-agenda-files)
+                             `(ts-active :from 0
+                                         :to ,org-upcoming-modeline-days-ahead)
+                             :action '(when-let* ((mark (point-marker))
+                                                  (bound (save-excursion (outline-next-heading) (point)))
+                                                  (time (save-excursion
+                                                          (car
+                                                           (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
+                                                                          for org-ts-string = (match-string 1)
+                                                                          when org-ts-string
+                                                                          for time = (org-upcoming-modeline--parse-ts org-ts-string)
+                                                                          when (and time
+                                                                                  (ts>= time (ts-now)))
+                                                                          collect time)
+                                                                 #'ts<)))))
+                                        (cons time mark)))))))
      (pcase-let*
          ((`(,time . ,marker) (car (seq-sort-by #'car #'ts< items)))
           (heading (org-with-point-at marker
