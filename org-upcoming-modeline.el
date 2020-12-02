@@ -71,9 +71,22 @@
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-soon (* 15 60)
+  "Number of seconds to consider an upcoming event \"close\"."
+  :group 'org-upcoming-modeline
+  :type 'integer)
+
 (defface org-upcoming-modeline-normal-face
   '((default (:inherit mode-line-emphasis)))
-  "Org Upcoming Modeline face for normal circumstances")
+  "Org Upcoming Modeline face for normal circumstances"
+  :group 'org-upcoming-modeline)
+
+(defface org-upcoming-modeline-soon-face
+  '((default
+      (:inherit org-upcoming-modeline-normal-face)
+      (:foreground "red")))
+  "Org Upcoming Modeline face for when an event is coming up soon."
+  :group 'org-upcoming-modeline)
 
 (defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
   "How long to snooze when mouse-3-clicking the modeline.
@@ -115,7 +128,9 @@ Used by `org-upcoming-modeline-snooze'."
                                      (t      ; > 1 days-until
                                       (ts-format "%a %H:%M" time)))))
        (propertize (format " ⏰ %s: %s" time-string heading)
-                   'face 'org-upcoming-modeline-normal-face
+                   'face (if (<= 0 seconds-until org-upcoming-modeline-soon)
+                             'org-upcoming-modeline-soon-face
+                           'org-upcoming-modeline-normal-face)
                    'help-echo (format "%s left until %s (mouse-3 will snooze, mouse-1 will jump to task)"
                                       (ts-human-format-duration seconds-until)
                                       heading)
