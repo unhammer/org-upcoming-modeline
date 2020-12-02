@@ -147,18 +147,20 @@ Store it in `org-upcoming-modeline--current-event'."
        ((items (remove
                 nil
                 (org-ql-select (org-agenda-files)
-                  `(ts-active :from 0
-                              :to ,org-upcoming-modeline-days-ahead)
+                  `(ts-upcoming :from ,(ts-now)
+                                :to ,(ts-adjust 'day org-upcoming-modeline-days-ahead
+                                                (ts-now)))
                   :action '(when-let* ((mark (point-marker))
+                                       (from-day (time-to-days (current-time)))
                                        (bound (save-excursion (outline-next-heading) (point)))
                                        (time (save-excursion
                                                (car
                                                 (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
                                                                for org-ts-string = (match-string 1)
                                                                when org-ts-string
-                                                               for time = (org-upcoming-modeline--parse-ts org-ts-string)
-                                                               when (and time
-                                                                         (ts>= time (ts-now)))
+                                                               for time = (org-upcoming-modeline--parse-upcoming org-ts-string
+                                                                                                                 from-day
+                                                                                                                 #'org-upcoming-modeline--parse-ts)
                                                                collect time)
                                                       #'ts<)))))
                              (cons time mark))))))
@@ -230,6 +232,59 @@ Store it in `org-upcoming-modeline--current-event'."
     (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-goto)
     (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-snooze)
     map))
+
+(defun org-upcoming-modeline-ts-to-time (ts)
+  "Turn a timestamp TS into format of `current-time'."
+  (encode-time (list 0
+                     0
+                     12
+                     (ts-d ts)
+                     (ts-m ts)
+                     (ts-year ts)
+                     'ignored
+                     (- 1)              ; guess
+                     (ts-tz-offset ts))))
+
+(defun org-upcoming-modeline--parse-upcoming (org-ts-string from-day ts-org-parser)
+  "Parse org timestamp ORG-TS-STRING into ts structure using TS-ORG-PARSER.
+If it has repeats, use the nearest instance at or after FROM-DAY."
+  (if (string-match "\\+\\([0-9]+\\)\\([hdwmy]\\)" org-ts-string)
+      (let* ((initial-ts (funcall ts-org-parser org-ts-string))
+             (initial-day (time-to-days (org-upcoming-modeline-ts-to-time initial-ts)))
+             (upcoming-day (org-time-string-to-absolute org-ts-string from-day 'future))
+             (adjustment (- upcoming-day initial-day)))
+        (ts-adjust 'day adjustment initial-ts))
+    ;; No repeats, just use the regular parse:
+    (funcall ts-org-parser org-ts-string)))
+
+(defvar org-upcoming-modeline--regexp
+  "<\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}[^\n>]*\\)>\\(--?-?<\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}[^\n>]*\\)>\\)?"
+  "This is what ts-active receives, don't know from where.")
+
+
+(org-ql--defpred ts-upcoming
+  (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
+  "As ts-active, but handle repeats by picking the one closest to FROM.
+And because we don't have the hack in
+`org-ql--pre-process-query', using this requires manually setting
+FROM/TO to dates when calling org-ql."
+  (let ((regexp org-upcoming-modeline--regexp)
+        (from-day (time-to-days (org-upcoming-modeline-ts-to-time
+                                 from))))
+    (cl-macrolet ((next-timestamp ()
+                                  `(when (re-search-forward regexp limit t)
+                                     (org-upcoming-modeline--parse-upcoming (match-string match-group)
+                                                                            from-day
+                                                                            #'ts-parse-org)))
+                  (test-timestamps (pred-form)
+                                   `(cl-loop for next-ts = (next-timestamp)
+                                             while next-ts
+                                             thereis ,pred-form)))
+      (save-excursion
+        (cond ((not (or from to)) (re-search-forward regexp limit t))
+              ((and from to) (test-timestamps (ts-in from to next-ts)))
+              (from (test-timestamps (ts<= from next-ts)))
+              (to (test-timestamps (ts<= next-ts to))))))))
 
 (provide 'org-upcoming-modeline)
 
