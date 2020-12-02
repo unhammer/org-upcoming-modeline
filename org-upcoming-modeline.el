@@ -257,34 +257,55 @@ If it has repeats, use the nearest instance at or after FROM-DAY."
     ;; No repeats, just use the regular parse:
     (funcall ts-org-parser org-ts-string)))
 
-(defvar org-upcoming-modeline--regexp
-  "<\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}[^\n>]*\\)>\\(--?-?<\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}[^\n>]*\\)>\\)?"
-  "This is what ts-active receives, don't know from where.")
-
-
-(org-ql--defpred ts-upcoming
-  (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
-  "As ts-active, but handle repeats by picking the one closest to FROM.
+(if (fboundp #'org-ql--defpred)
+    ;; org-ql <=0.5.0
+    (org-ql--defpred ts-upcoming
+      (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
+      "As ts-active, but handle repeats by picking the one closest to FROM.
 And because we don't have the hack in
 `org-ql--pre-process-query', using this requires manually setting
 FROM/TO to dates when calling org-ql."
-  (let ((regexp org-upcoming-modeline--regexp)
-        (from-day (time-to-days (org-upcoming-modeline-ts-to-time
-                                 from))))
-    (cl-macrolet ((next-timestamp ()
-                                  `(when (re-search-forward regexp limit t)
-                                     (org-upcoming-modeline--parse-upcoming (match-string match-group)
-                                                                            from-day
-                                                                            #'ts-parse-org)))
-                  (test-timestamps (pred-form)
-                                   `(cl-loop for next-ts = (next-timestamp)
-                                             while next-ts
-                                             thereis ,pred-form)))
-      (save-excursion
-        (cond ((not (or from to)) (re-search-forward regexp limit t))
-              ((and from to) (test-timestamps (ts-in from to next-ts)))
-              (from (test-timestamps (ts<= from next-ts)))
-              (to (test-timestamps (ts<= next-ts to))))))))
+      (let ((regexp org-tsr-regexp)
+            (from-day (time-to-days (org-upcoming-modeline-ts-to-time
+                                     from))))
+        (cl-macrolet ((next-timestamp ()
+                                      `(when (re-search-forward regexp limit t)
+                                         (org-upcoming-modeline--parse-upcoming (match-string match-group)
+                                                                                from-day
+                                                                                #'ts-parse-org)))
+                      (test-timestamps (pred-form)
+                                       `(cl-loop for next-ts = (next-timestamp)
+                                                 while next-ts
+                                                 thereis ,pred-form)))
+          (save-excursion
+            (cond ((not (or from to)) (re-search-forward regexp limit t))
+                  ((and from to) (test-timestamps (ts-in from to next-ts)))
+                  (from (test-timestamps (ts<= from next-ts)))
+                  (to (test-timestamps (ts<= next-ts to))))))))
+  ;; org-ql >0.5.0
+  (org-ql-defpred ts-upcoming
+    (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
+    "As ts-active, but handle repeats by picking the one closest to FROM.
+And no normalisers yet, so using this requires manually setting
+FROM/TO to dates when calling org-ql."
+    :body
+    (let ((regexp org-tsr-regexp)
+          (from-day (time-to-days (org-upcoming-modeline-ts-to-time
+                                   from))))
+      (cl-macrolet ((next-timestamp ()
+                                    `(when (re-search-forward regexp limit t)
+                                       (org-upcoming-modeline--parse-upcoming (match-string match-group)
+                                                                              from-day
+                                                                              #'ts-parse-org)))
+                    (test-timestamps (pred-form)
+                                     `(cl-loop for next-ts = (next-timestamp)
+                                               while next-ts
+                                               thereis ,pred-form)))
+        (save-excursion
+          (cond ((not (or from to)) (re-search-forward regexp limit t))
+                ((and from to) (test-timestamps (ts-in from to next-ts)))
+                (from (test-timestamps (ts<= from next-ts)))
+                (to (test-timestamps (ts<= next-ts to)))))))))
 
 (provide 'org-upcoming-modeline)
 
