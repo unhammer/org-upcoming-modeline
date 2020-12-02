@@ -143,32 +143,37 @@ Used by `org-upcoming-modeline-snooze'."
 Store it in `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline--current-event
-   (when-let*
-       ((items (remove
-                nil
-                (org-ql-select (org-agenda-files)
-                  `(ts-upcoming :from ,(ts-now)
-                                :to ,(ts-adjust 'day org-upcoming-modeline-days-ahead
-                                                (ts-now)))
-                  :action '(when-let* ((mark (point-marker))
-                                       (from-day (time-to-days (current-time)))
-                                       (bound (save-excursion (outline-next-heading) (point)))
-                                       (time (save-excursion
-                                               (car
-                                                (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
-                                                               for org-ts-string = (match-string 1)
-                                                               when org-ts-string
-                                                               for time = (org-upcoming-modeline--parse-upcoming org-ts-string
-                                                                                                                 from-day
-                                                                                                                 #'org-upcoming-modeline--parse-ts)
-                                                               collect time)
-                                                      #'ts<)))))
-                             (cons time mark))))))
-     (pcase-let*
-         ((`(,time . ,marker) (car (seq-sort-by #'car #'ts< items)))
-          (heading (org-with-point-at marker
-                     (org-link-display-format (nth 4 (org-heading-components))))))
-       (list time heading marker)))))
+   (first
+    (remove-if (lambda (thing) (ts< (car thing) (ts-now)))
+               (seq-sort-by #'car #'ts<
+                            (org-element-map (org-ql-select (org-agenda-files)
+                                               `(ts-upcoming :from ,(ts-now)
+                                                             :to ,(ts-adjust 'day org-upcoming-modeline-days-ahead
+                                                                             (ts-now)))
+                                               :action 'element-with-markers
+                                               :sort 'scheduled)
+                                '(headline)
+                              (lambda (headline)
+                                (let ((mark (first (last (first (last headline)))))
+                                      (from-day (time-to-days (current-time)))
+                                      (title-thing (org-element-property :title headline)))
+                                  (cond
+                                   ((org-element-property :scheduled headline)
+                                    (let ((timestamp (org-element-property :raw-value (org-element-property :scheduled headline)))
+                                          (text (org-element-property :raw-value headline)))
+                                      (list (org-upcoming-modeline--parse-upcoming timestamp from-day #'org-upcoming-modeline--parse-ts)
+                                            (substring-no-properties text)
+                                            mark)))
+                                   (t
+                                    (let ((timestamp (org-element-property :raw-value
+                                                                           (first (remove-if-not (lambda (thing)
+                                                                                                   (eq (org-element-type thing) 'timestamp))
+                                                                                                 title-thing))))
+                                          (text (first (remove-if (lambda (thing) (eq (org-element-type thing) 'timestamp)) title-thing))))
+                                      (list (org-upcoming-modeline--parse-upcoming timestamp from-day #'org-upcoming-modeline--parse-ts)
+                                            (substring-no-properties text)
+                                            mark))))))))))))
+
 
 ;;;###autoload
 (define-minor-mode org-upcoming-modeline-mode
