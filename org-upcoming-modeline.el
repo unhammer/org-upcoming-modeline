@@ -38,8 +38,8 @@
                 (save-match-data
                   (org-parse-time-string org-ts-string 'nodefault))))
     (and minute
-         hour
-         (make-ts :second 0 :minute minute :hour hour :day day :month month :year year))))
+       hour
+       (make-ts :second 0 :minute minute :hour hour :day day :month month :year year))))
 
 (defgroup org-upcoming-modeline nil
   "Options for showing upcoming org event in the mode line."
@@ -231,7 +231,7 @@ Store it in `org-upcoming-modeline--current-event'."
   (run-with-timer org-upcoming-modeline-snooze-seconds
                   nil
                   (lambda () (when org-upcoming-modeline
-                          (org-upcoming-modeline--enable)))))
+                               (org-upcoming-modeline--enable)))))
 
 (defconst org-upcoming-modeline-map
   (let ((map (make-sparse-keymap)))
@@ -267,28 +267,28 @@ If it has repeats, use the nearest instance at or after FROM-DAY."
 (if (fboundp #'org-ql--defpred)
     ;; org-ql <=0.5.0
     (org-ql--defpred ts-upcoming
-      (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
-      "As ts-active, but handle repeats by picking the one closest to FROM.
+                     (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
+                     "As ts-active, but handle repeats by picking the one closest to FROM.
 And because we don't have the hack in
 `org-ql--pre-process-query', using this requires manually setting
 FROM/TO to dates when calling org-ql."
-      (let ((regexp org-tsr-regexp)
-            (from-day (time-to-days (org-upcoming-modeline-ts-to-time
-                                     from))))
-        (cl-macrolet ((next-timestamp ()
-                                      `(when (re-search-forward regexp limit t)
-                                         (org-upcoming-modeline--parse-upcoming (match-string match-group)
-                                                                                from-day
-                                                                                #'ts-parse-org)))
-                      (test-timestamps (pred-form)
-                                       `(cl-loop for next-ts = (next-timestamp)
-                                                 while next-ts
-                                                 thereis ,pred-form)))
-          (save-excursion
-            (cond ((not (or from to)) (re-search-forward regexp limit t))
-                  ((and from to) (test-timestamps (ts-in from to next-ts)))
-                  (from (test-timestamps (ts<= from next-ts)))
-                  (to (test-timestamps (ts<= next-ts to))))))))
+                     (let ((regexp org-tsr-regexp)
+                           (from-day (time-to-days (org-upcoming-modeline-ts-to-time
+                                                    from))))
+                       (cl-macrolet ((next-timestamp ()
+                                                     `(when (re-search-forward regexp limit t)
+                                                        (org-upcoming-modeline--parse-upcoming (match-string match-group)
+                                                                                               from-day
+                                                                                               #'ts-parse-org)))
+                                     (test-timestamps (pred-form)
+                                                      `(cl-loop for next-ts = (next-timestamp)
+                                                                while next-ts
+                                                                thereis ,pred-form)))
+                         (save-excursion
+                           (cond ((not (or from to)) (re-search-forward regexp limit t))
+                                 ((and from to) (test-timestamps (ts-in from to next-ts)))
+                                 (from (test-timestamps (ts<= from next-ts)))
+                                 (to (test-timestamps (ts<= next-ts to))))))))
   ;; org-ql >0.5.0
   (org-ql-defpred ts-upcoming
     (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
