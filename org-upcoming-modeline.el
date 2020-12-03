@@ -223,7 +223,7 @@ Store it in `org-upcoming-modeline--current-event'."
   (force-mode-line-update)
   (run-with-timer org-upcoming-modeline-snooze-seconds
                   nil
-                  (lambda () (when org-upcoming-modeline
+                  (lambda () (when org-upcoming-modeline-mode
                           (org-upcoming-modeline--enable)))))
 
 (defconst org-upcoming-modeline-map
