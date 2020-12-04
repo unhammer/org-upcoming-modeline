@@ -161,6 +161,7 @@ Store it in `org-upcoming-modeline--current-event'."
                                                                for time = (org-upcoming-modeline--parse-upcoming org-ts-string
                                                                                                                  from-day
                                                                                                                  #'org-upcoming-modeline--parse-ts)
+                                                               when time
                                                                collect time)
                                                       #'ts<)))))
                              (cons time mark))))))
@@ -249,10 +250,10 @@ Store it in `org-upcoming-modeline--current-event'."
   "Parse org timestamp ORG-TS-STRING into ts structure using TS-ORG-PARSER.
 If it has repeats, use the nearest instance at or after FROM-DAY."
   (if (string-match "\\+\\([0-9]+\\)\\([hdwmy]\\)" org-ts-string)
-      (let* ((initial-ts (funcall ts-org-parser org-ts-string))
-             (initial-day (time-to-days (org-upcoming-modeline-ts-to-time initial-ts)))
-             (upcoming-day (org-time-string-to-absolute org-ts-string from-day 'future))
-             (adjustment (- upcoming-day initial-day)))
+      (when-let* ((initial-ts (funcall ts-org-parser org-ts-string))
+                  (initial-day (time-to-days (org-upcoming-modeline-ts-to-time initial-ts)))
+                  (upcoming-day (org-time-string-to-absolute org-ts-string from-day 'future))
+                  (adjustment (- upcoming-day initial-day)))
         (ts-adjust 'day adjustment initial-ts))
     ;; No repeats, just use the regular parse:
     (funcall ts-org-parser org-ts-string)))
