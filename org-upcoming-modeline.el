@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 Kevin Brubeck Unhammer
 
 ;; Author: Kevin Brubeck Unhammer <unhammer@fsfe.org>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "26.1") (ts "0.2") (org-ql "0.5"))
 ;; URL: https://github.com/unhammer/org-upcoming-modeline
 ;; Keywords: convenience, calendar
@@ -164,9 +164,9 @@ Store it in `org-upcoming-modeline--current-event'."
                                                                when time
                                                                collect time)
                                                       #'ts<)))))
-                             (cons time mark))))))
+                             (list time mark))))))
      (pcase-let*
-         ((`(,time . ,marker) (car (seq-sort-by #'car #'ts< items)))
+         ((`(,time ,marker . nil) (car (seq-sort-by #'car #'ts< items)))
           (heading (org-with-point-at marker
                      (org-link-display-format (nth 4 (org-heading-components))))))
        (list time heading marker)))))
