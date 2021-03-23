@@ -51,6 +51,13 @@
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-trim 20
+  "Trim the org headline to this many characters.
+No trimming if set to nil."
+  :group 'org-upcoming-modeline
+  :type '(choice (integer :tag "Show at most this many characters")
+                 (const :tag "Never trim the string" nil)))
+
 (defcustom org-upcoming-modeline-l10n '((tomorrow . "tomorrow"))
   "Localisation."
   :group 'org-upcoming-modeline
@@ -105,7 +112,16 @@ Used by `org-upcoming-modeline-snooze'."
 (defvar org-upcoming-modeline--find-event-timer nil)
 (defvar org-upcoming-modeline--set-string-timer nil)
 
-
+(defun org-upcoming-modeline--trim (heading)
+  "Trim HEADING to `org-upcoming-modeline-trim' if set and necessary."
+  (if (and org-upcoming-modeline-trim
+           (> (length heading)
+              org-upcoming-modeline-trim))
+      (concat (string-trim (substring heading
+                                      0
+                                      org-upcoming-modeline-trim))
+              "…")
+    heading))
 
 (defun org-upcoming-modeline--set-string ()
   "Set `org-upcoming-modeline-string' based on `org-upcoming-modeline--current-event'."
@@ -127,7 +143,9 @@ Used by `org-upcoming-modeline-snooze'."
                                               (ts-format " %H:%M" time)))
                                      (t      ; > 1 days-until
                                       (ts-format "%a %H:%M" time)))))
-       (propertize (format " ⏰ %s: %s" time-string heading)
+       (propertize (format " ⏰ %s: %s"
+                           time-string
+                           (org-upcoming-modeline--trim heading))
                    'face (if (<= 0 seconds-until org-upcoming-modeline-soon)
                              'org-upcoming-modeline-soon-face
                            'org-upcoming-modeline-normal-face)
