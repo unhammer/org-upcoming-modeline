@@ -51,6 +51,11 @@
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-keep-late 3600
+  "Show this many seconds after the event has begun, unless we're clocked into it."
+  :group 'org-upcoming-modeline
+  :type 'integer)
+
 (defcustom org-upcoming-modeline-trim 20
   "Trim the org headline to this many characters.
 No trimming if set to nil."
@@ -165,7 +170,8 @@ Store it in `org-upcoming-modeline--current-event'."
        ((items (remove
                 nil
                 (org-ql-select (org-agenda-files)
-                  `(ts-upcoming :from ,(ts-now)
+                  `(ts-upcoming :from ,(ts-adjust 'minute (- 15)
+                                                  (ts-now))
                                 :to ,(ts-adjust 'day org-upcoming-modeline-days-ahead
                                                 (ts-now)))
                   :action '(when-let* ((mark (point-marker))
@@ -227,7 +233,7 @@ Store it in `org-upcoming-modeline--current-event'."
   (interactive "e")
   (when-let* ((text (car (cl-fifth (cadr event)))) ; TODO there's gotta be some event api for this
               (marker (get-text-property 0 'org-upcoming-marker text)))
-    (switch-to-buffer (marker-buffer marker))
+    (select-window (display-buffer (marker-buffer marker)))
     (widen)
     (goto-char (marker-position marker))
     (org-show-entry)
