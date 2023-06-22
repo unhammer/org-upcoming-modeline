@@ -1,9 +1,9 @@
 ;;; org-upcoming-modeline.el --- Show next org event in mode line -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020 Kevin Brubeck Unhammer
+;; Copyright (C) 2020--2023 Kevin Brubeck Unhammer
 
 ;; Author: Kevin Brubeck Unhammer <unhammer@fsfe.org>
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "26.1") (ts "0.2") (org-ql "0.5"))
 ;; URL: https://github.com/unhammer/org-upcoming-modeline
 ;; Keywords: convenience, calendar
@@ -90,7 +90,7 @@ No trimming if set to nil."
 
 (defface org-upcoming-modeline-normal-face
   '((default (:inherit mode-line-emphasis)))
-  "Org Upcoming Modeline face for normal circumstances"
+  "Org Upcoming Modeline face for normal circumstances."
   :group 'org-upcoming-modeline)
 
 (defface org-upcoming-modeline-soon-face
@@ -116,6 +116,8 @@ Used by `org-upcoming-modeline-snooze'."
 
 (defvar org-upcoming-modeline--find-event-timer nil)
 (defvar org-upcoming-modeline--set-string-timer nil)
+
+
 
 (defun org-upcoming-modeline--trim (heading)
   "Trim HEADING to `org-upcoming-modeline-trim' if set and necessary."
@@ -195,68 +197,6 @@ Store it in `org-upcoming-modeline--current-event'."
                      (org-link-display-format (nth 4 (org-heading-components))))))
        (list time heading marker)))))
 
-;;;###autoload
-(define-minor-mode org-upcoming-modeline-mode
-  "Show next upcoming org-mode event in mode line"
-  :group 'org-upcoming-modeline
-  :global t
-  (if org-upcoming-modeline-mode
-      (progn (org-upcoming-modeline--enable)
-             ;; Also compute immediately on first starting the mode, for that first-run feel:
-             (org-upcoming-modeline--find-event))
-    (org-upcoming-modeline--disable)))
-
-(defun org-upcoming-modeline--enable ()
-  "Add to mode line and start and store timers."
-  (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
-  (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
-                                                 org-upcoming-modeline-recompute-after-idle
-                                                 'repeat
-                                                 #'org-upcoming-modeline--find-event))
-  (setq org-upcoming-modeline--set-string-timer (run-with-timer
-                                                 1
-                                                 org-upcoming-modeline-interval
-                                                 #'org-upcoming-modeline--set-string)))
-
-(defun org-upcoming-modeline--disable ()
-  "Remove from mode line and stop timers."
-  (delq 'org-upcoming-modeline-string global-mode-string)
-  (when (timerp org-upcoming-modeline--find-event-timer)
-    (cancel-timer org-upcoming-modeline--find-event-timer))
-  (when (timerp org-upcoming-modeline--set-string-timer)
-    (cancel-timer org-upcoming-modeline--set-string-timer)))
-
-
-
-(defun org-upcoming-modeline-goto (event)
-  "Show upcoming org EVENT."
-  (interactive "e")
-  (when-let* ((text (car (cl-fifth (cadr event)))) ; TODO there's gotta be some event api for this
-              (marker (get-text-property 0 'org-upcoming-marker text)))
-    (select-window (display-buffer (marker-buffer marker)))
-    (widen)
-    (goto-char (marker-position marker))
-    (org-show-entry)
-    (org-back-to-heading t)
-    (org-cycle-hide-drawers 'children)
-    (org-reveal)))
-
-(defun org-upcoming-modeline-snooze (event)
-  "Hide it for five minutes, ignore EVENT."
-  (interactive "e")
-  (org-upcoming-modeline--disable)
-  (force-mode-line-update)
-  (run-with-timer org-upcoming-modeline-snooze-seconds
-                  nil
-                  (lambda () (when org-upcoming-modeline-mode
-                          (org-upcoming-modeline--enable)))))
-
-(defconst org-upcoming-modeline-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [mode-line down-mouse-1] 'org-upcoming-modeline-goto)
-    (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-goto)
-    (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-snooze)
-    map))
 
 (defun org-upcoming-modeline-ts-to-time (ts)
   "Turn a timestamp TS into format of `current-time'."
@@ -331,6 +271,106 @@ FROM/TO to dates when calling org-ql."
                 ((and from to) (test-timestamps (ts-in from to next-ts)))
                 (from (test-timestamps (ts<= from next-ts)))
                 (to (test-timestamps (ts<= next-ts to)))))))))
+
+
+
+;;;###autoload
+(define-minor-mode org-upcoming-modeline-mode
+  "Show next upcoming org-mode event in mode line"
+  :group 'org-upcoming-modeline
+  :global t
+  (if org-upcoming-modeline-mode
+      (progn (org-upcoming-modeline--enable)
+             ;; Also compute immediately on first starting the mode, for that first-run feel:
+             (org-upcoming-modeline--find-event))
+    (org-upcoming-modeline--disable)))
+
+(defun org-upcoming-modeline--enable ()
+  "Add to mode line and start and store timers."
+  (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
+  (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
+                                                 org-upcoming-modeline-recompute-after-idle
+                                                 'repeat
+                                                 #'org-upcoming-modeline--find-event))
+  (setq org-upcoming-modeline--set-string-timer (run-with-timer
+                                                 1
+                                                 org-upcoming-modeline-interval
+                                                 #'org-upcoming-modeline--set-string)))
+
+(defun org-upcoming-modeline--disable ()
+  "Remove from mode line and stop timers."
+  (delq 'org-upcoming-modeline-string global-mode-string)
+  (when (timerp org-upcoming-modeline--find-event-timer)
+    (cancel-timer org-upcoming-modeline--find-event-timer))
+  (when (timerp org-upcoming-modeline--set-string-timer)
+    (cancel-timer org-upcoming-modeline--set-string-timer)))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Right click events, menu: ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun org-upcoming-modeline--get-marker (event)
+  "Get the marker stored at EVENT text.
+Fallback to marker of `org-upcoming-modeline-string'."
+  (when-let* ((text (or (car (cl-fifth (cadr event))) ; TODO there's gotta be some event api for this
+                        org-upcoming-modeline-string)))
+    (get-text-property 0 'org-upcoming-marker text)))
+
+(defun org-upcoming-modeline-goto (event)
+  "Show upcoming org EVENT."
+  (interactive "e")
+  (when-let* ((marker (org-upcoming-modeline--get-marker event)))
+    (select-window (display-buffer (marker-buffer marker)))
+    (widen)
+    (goto-char (marker-position marker))
+    (org-show-entry)
+    (org-back-to-heading t)
+    (org-cycle-hide-drawers 'children)
+    (org-reveal)))
+
+(defun org-upcoming-modeline-clock-in (event)
+  "Clock in to upcoming org EVENT."
+  (interactive "e")
+  (when-let* ((marker (org-upcoming-modeline--get-marker event)))
+    (with-current-buffer (org-base-buffer (marker-buffer marker))
+      (org-with-wide-buffer
+       (goto-char (marker-position marker))
+       (org-clock-in)))))
+
+(defun org-upcoming-modeline-snooze (event)
+  "Hide it for five minutes, ignore EVENT."
+  (interactive "e")
+  (message "Disabling org-upcoming-modeline for five minutes")
+  (org-upcoming-modeline--disable)
+  (force-mode-line-update)
+  (run-with-timer org-upcoming-modeline-snooze-seconds
+                  nil
+                  (lambda () (when org-upcoming-modeline-mode
+                          (org-upcoming-modeline--enable)))))
+
+(defconst org-upcoming-modeline-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mode-line down-mouse-1] 'org-upcoming-modeline-goto)
+    (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-snooze)
+    (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-popup-menu)
+    map))
+
+(easy-menu-define org-upcoming-modeline--menu nil "Dynamic Menu."
+  '(
+    "Org Upcoming Modeline"
+    ["Go to event" org-upcoming-modeline-goto]
+    ["Snooze for five minutes" org-upcoming-modeline-snooze]
+    ["Clock in" org-upcoming-modeline-clock-in]))
+
+(defun org-upcoming-modeline-popup-menu (event &optional prefix)
+  "Popup a context menu for EVENT, passing on optional PREFIX."
+  (interactive "@e \nP")
+  (popup-menu org-upcoming-modeline--menu event prefix))
+
+
+
 
 (provide 'org-upcoming-modeline)
 
