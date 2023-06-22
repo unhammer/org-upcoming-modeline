@@ -276,7 +276,7 @@ FROM/TO to dates when calling org-ql."
 
 ;;;###autoload
 (define-minor-mode org-upcoming-modeline-mode
-  "Show next upcoming org-mode event in mode line"
+  "Show next upcoming `org-mode' event in mode line."
   :group 'org-upcoming-modeline
   :global t
   (if org-upcoming-modeline-mode
