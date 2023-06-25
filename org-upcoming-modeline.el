@@ -33,8 +33,9 @@
 (require 'org-ql)
 
 (defsubst org-upcoming-modeline--parse-ts (org-ts-string)
-  "Get ts object for Org timestamp string ORG-TS-STRING but only if it has hour/minute part."
-  (pcase-let* ((`(,second ,minute ,hour ,day ,month ,year)
+  "Get ts object for Org timestamp string ORG-TS-STRING.
+Returns nil if no hour/minute part."
+  (pcase-let* ((`(,_second ,minute ,hour ,day ,month ,year)
                 (save-match-data
                   (org-parse-time-string org-ts-string 'nodefault))))
     (and minute
@@ -131,7 +132,9 @@ Used by `org-upcoming-modeline-snooze'."
     heading))
 
 (defun org-upcoming-modeline--set-string ()
-  "Set `org-upcoming-modeline-string' based on `org-upcoming-modeline--current-event'."
+  "Set the modeline string to the next upcoming event.
+Sets `org-upcoming-modeline-string' based on
+`org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline-string
    (when org-upcoming-modeline--current-event
