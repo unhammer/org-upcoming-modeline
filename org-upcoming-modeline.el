@@ -252,7 +252,7 @@ FROM/TO to dates when calling org-ql."
                   (to (test-timestamps (ts<= next-ts to))))))))
   ;; org-ql >0.5.0
   (org-ql-defpred ts-upcoming
-    (&key from to _on regexp (match-group 0) (limit (org-entry-end-position)))
+    (&key from to _on _regexp (match-group 0) (limit (org-entry-end-position)))
     "As ts-active, but handle repeats by picking the one closest to FROM.
 And no normalisers yet, so using this requires manually setting
 FROM/TO to dates when calling org-ql."
@@ -342,7 +342,7 @@ Fallback to marker of `org-upcoming-modeline-string'."
        (goto-char (marker-position marker))
        (org-clock-in)))))
 
-(defun org-upcoming-modeline-snooze (event)
+(defun org-upcoming-modeline-snooze (_event)
   "Hide it for five minutes, ignore EVENT."
   (interactive "e")
   (message "Disabling org-upcoming-modeline for five minutes")
