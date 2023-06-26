@@ -131,6 +131,13 @@ Used by `org-upcoming-modeline-snooze'."
               "…")
     heading))
 
+(defvar org-upcoming-modeline-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mode-line down-mouse-1] 'org-upcoming-modeline-goto)
+    (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-snooze)
+    (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-popup-menu)
+    map))
+
 (defun org-upcoming-modeline--set-string ()
   "Set the modeline string to the next upcoming event.
 Sets `org-upcoming-modeline-string' based on
@@ -326,13 +333,6 @@ Fallback to marker of `org-upcoming-modeline-string'."
                   nil
                   (lambda () (when org-upcoming-modeline-mode
                           (org-upcoming-modeline--enable)))))
-
-(defconst org-upcoming-modeline-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [mode-line down-mouse-1] 'org-upcoming-modeline-goto)
-    (define-key map [mode-line down-mouse-2] 'org-upcoming-modeline-snooze)
-    (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-popup-menu)
-    map))
 
 (easy-menu-define org-upcoming-modeline--menu nil "Dynamic Menu."
   '(
