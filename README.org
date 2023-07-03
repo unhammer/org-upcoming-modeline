@@ -1,14 +1,29 @@
 #+TITLE: org-upcoming-modeline
 
+[[https://melpa.org/#/org-upcoming-modeline][https://melpa.org/packages/org-upcoming-modeline-badge.svg]]
+[[https://stable.melpa.org/#/org-upcoming-modeline][https://stable.melpa.org/packages/org-upcoming-modeline-badge.svg]]
+
 #+ATTR_HTML: :alt org-upcoming-modeline demo
 [[file:org-upcoming-modeline.gif][file:org-upcoming-modeline.gif]]
 
+
+* Installation
+
+** MELPA
+If you use [[https://melpa.org/][MELPA]], you can just do =M-x list-packages=, find
+=org-upcoming-modeline= in the list and hit =i x=.
+
+** Manual
+Just put =org-upcoming-modeline.el= somewhere in =load-path=.
+
+* Usage
+
 #+begin_src emacs-lisp
-(use-package org-upcoming-modeline
-  :after org
-  :load-path "~/src/org-upcoming-modeline"
-  :config
-  (org-upcoming-modeline-mode))
+  (use-package org-upcoming-modeline
+    :after org                               ; if you don't want it to start until org has been loaded
+    :load-path "~/src/org-upcoming-modeline" ; if you installed manually
+    :config
+    (org-upcoming-modeline-mode))
 #+end_src
 
 See also =M-x customize-group RET org-upcoming-modeline=.

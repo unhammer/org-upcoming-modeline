@@ -102,7 +102,7 @@ No trimming if set to nil."
   :group 'org-upcoming-modeline)
 
 (defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
-  "How long to snooze when mouse-3-clicking the modeline.
+  "How long to snooze when mouse-2-clicking the modeline.
 Used by `org-upcoming-modeline-snooze'."
   :group 'org-upcoming-modeline
   :type 'integer)
@@ -166,7 +166,7 @@ Sets `org-upcoming-modeline-string' based on
                    'face (if (<= 0 seconds-until org-upcoming-modeline-soon)
                              'org-upcoming-modeline-soon-face
                            'org-upcoming-modeline-normal-face)
-                   'help-echo (format "%s left until %s (mouse-3 will snooze, mouse-1 will jump to task)"
+                   'help-echo (format "%s left until %s (mouse-1: goto, mouse-2: snooze, mouse-3: menu)"
                                       (ts-human-format-duration seconds-until)
                                       heading)
                    'org-upcoming-marker marker
