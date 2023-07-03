@@ -3,6 +3,11 @@
 [[https://melpa.org/#/org-upcoming-modeline][https://melpa.org/packages/org-upcoming-modeline-badge.svg]]
 [[https://stable.melpa.org/#/org-upcoming-modeline][https://stable.melpa.org/packages/org-upcoming-modeline-badge.svg]]
 
+This package shows you the next upcoming org appointment in your modeline.
+
+You can left-click on it to go to it, right-click for a menu of
+actions, middle-click to temporarily hide it.
+
 #+ATTR_HTML: :alt org-upcoming-modeline demo
 [[file:org-upcoming-modeline.gif][file:org-upcoming-modeline.gif]]
 
@@ -10,7 +15,7 @@
 * Installation
 
 ** MELPA
-If you use [[https://melpa.org/][MELPA]], you can just do =M-x list-packages=, find
+If you use [[https://melpa.org/][MELPA]], you can do =M-x list-packages=, find
 =org-upcoming-modeline= in the list and hit =i x=.
 
 ** Manual
