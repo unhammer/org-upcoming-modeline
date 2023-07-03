@@ -179,14 +179,16 @@ Store it in `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline--current-event
    (when-let*
-       ((items (remove
+       ((start-time (ts-adjust 'minute (- 15)
+                               (ts-now)))
+        (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
+                             (ts-now)))
+        (items (remove
                 nil
                 (org-ql-select (org-agenda-files)
-                  `(ts-upcoming :from ,(ts-adjust 'minute (- 15)
-                                                  (ts-now))
-                                :to ,(ts-adjust 'day org-upcoming-modeline-days-ahead
-                                                (ts-now)))
-                  :action '(when-let* ((mark (point-marker))
+                  `(ts-upcoming :from ,start-time
+                                :to ,end-time)
+                  :action `(when-let* ((mark (point-marker))
                                        (from-day (time-to-days (current-time)))
                                        (bound (save-excursion (outline-next-heading) (point)))
                                        (time (save-excursion
@@ -197,7 +199,8 @@ Store it in `org-upcoming-modeline--current-event'."
                                                                for time = (org-upcoming-modeline--parse-upcoming org-ts-string
                                                                                                                  from-day
                                                                                                                  #'org-upcoming-modeline--parse-ts)
-                                                               when time
+                                                               when (and time
+                                                                         (ts<= ,start-time time))
                                                                collect time)
                                                       #'ts<)))))
                              (list time mark))))))
