@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020--2023 Kevin Brubeck Unhammer
 
 ;; Author: Kevin Brubeck Unhammer <unhammer@fsfe.org>
-;; Version: 0.1.3
+;; Version: 0.1.4
 ;; Package-Requires: ((emacs "26.1") (ts "0.2") (org-ql "0.6"))
 ;; URL: https://github.com/unhammer/org-upcoming-modeline
 ;; Keywords: convenience, calendar
