@@ -101,6 +101,11 @@ No trimming if set to nil."
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-ignored-keywords nil
+  "Which keywords to ignores (e.g. DONE)."
+  :group 'org-upcoming-modeline
+  :type '(repeat string))
+
 (defface org-upcoming-modeline-normal-face
   '((default (:inherit mode-line-emphasis)))
   "Org Upcoming Modeline face for normal circumstances."
@@ -198,8 +203,11 @@ Store it in `org-upcoming-modeline--current-event'."
         (items (remove
                 nil
                 (org-ql-select (org-agenda-files)
-                  `(ts-upcoming :from ,start-time
-                                :to ,end-time)
+                  `(and (ts-upcoming :from ,start-time
+                                     :to ,end-time)
+                        (not ,@(if org-upcoming-modeline-ignored-keywords
+                                   `((todo ,@org-upcoming-modeline-ignored-keywords))
+                                 '(nil))))
                   :action `(when-let* ((mark (point-marker))
                                        (from-day (time-to-days (current-time)))
                                        (bound (save-excursion (outline-next-heading) (point)))
