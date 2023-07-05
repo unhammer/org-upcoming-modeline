@@ -294,7 +294,9 @@ FROM/TO to dates when calling org-ql."
 
 (defun org-upcoming-modeline--enable ()
   "Add to mode line and start and store timers."
-  (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
+  (if global-mode-string
+      (add-to-list 'global-mode-string 'org-upcoming-modeline-string 'append)
+    (setq global-mode-string '("" org-upcoming-modeline-string)))
   (setq org-upcoming-modeline--find-event-timer (run-with-idle-timer
                                                  org-upcoming-modeline-recompute-after-idle
                                                  'repeat
