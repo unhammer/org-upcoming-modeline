@@ -106,6 +106,11 @@ No trimming if set to nil."
   :group 'org-upcoming-modeline
   :type '(repeat string))
 
+(defcustom org-upcoming-modeline-format #'org-upcoming-modeline-default-format
+  "A function to turn time-string and heading into a mode-line string."
+  :group 'org-upcoming-modeline
+  :type 'function)
+
 (defface org-upcoming-modeline-normal-face
   '((default (:inherit mode-line-emphasis)))
   "Org Upcoming Modeline face for normal circumstances."
@@ -177,9 +182,9 @@ Sets `org-upcoming-modeline-string' based on
                                               (ts-format " %H:%M" time)))
                                      (t      ; > 1 days-until
                                       (ts-format "%a %H:%M" time)))))
-       (propertize (format " ⏰ %s: %s"
-                           time-string
-                           (org-upcoming-modeline--trim heading))
+       (propertize (funcall org-upcoming-modeline-format
+                            time-string
+                            (org-upcoming-modeline--trim heading))
                    'face (if (<= 0 seconds-until org-upcoming-modeline-soon)
                              'org-upcoming-modeline-soon-face
                            'org-upcoming-modeline-normal-face)
@@ -189,6 +194,11 @@ Sets `org-upcoming-modeline-string' based on
                    'org-upcoming-marker marker
                    'mouse-face 'mode-line-highlight
                    'local-map org-upcoming-modeline-map)))))
+
+(defun org-upcoming-modeline-default-format (time-string heading)
+  "Format TIME-STRING and HEADING as a string for displaying in the mode-line.
+Used as default for `org-upcoming-modeline-format'."
+  (format " ⏰ %s: %s" time-string heading))
 
 (defun org-upcoming-modeline--find-event ()
   "Find the first upcoming org event, with timestamp and marker.
