@@ -32,3 +32,22 @@ Just put =org-upcoming-modeline.el= somewhere in =load-path=.
 #+end_src
 
 See also =M-x customize-group RET org-upcoming-modeline=.
+
+* Related packages
+
+** appt
+
+=appt= is not itself integrated with org-mode, but if you do
+=(add-hook 'org-finalize-agenda-hook #'org-agenda-to-appt)= it will
+add appointments from that agenda to your list of future warnings, and
+warn when you're getting closer. But the modeline just says "App't in
+15 min." (it doesn't show the name of the event, and there's no
+org-integration). However, by default it will keep popping up a small
+window with the event name for you every so often when the event is
+getting near.
+
+In comparison, this package doesn't require you to open (the correct)
+=org-agenda= first; it shows the actual org heading and adds
+org-specific "actions" that you can select for the event. And since it
+uses =org-ql=, it'll automatically remove the event (after a short
+idle delay) if you remove it from your org file.
