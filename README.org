@@ -43,7 +43,7 @@ Here is a non-exhaustive list of some =org-upcoming-modeline= functionalities:
 - =org-upcoming-modeline-format= allows you to modify the displaying format of the elements around the appointment time (=time-string=)  and the appointment title (=heading=).
   Example replacing the alarm clock icon with a calendar icon, and replacing =:= with =-=:
   #+begin_src emacs-lisp 
-    (setq org-upcoming-modeline-format (lambda (ms mh) (format " %s - %s" ms mh)))
+    (setq org-upcoming-modeline-format (lambda (ms mh) (format "🗓 %s - %s" ms mh)))
   #+end_src
 - =org-upcoming-modeline-days-ahead= allows you to fix the number of days to look into the future (1 by default).
   Example looking for 15 days ahead:
