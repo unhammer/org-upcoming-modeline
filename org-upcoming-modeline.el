@@ -160,6 +160,41 @@ Used by `org-upcoming-modeline-snooze'."
     (define-key map [mode-line down-mouse-3] 'org-upcoming-modeline-popup-menu)
     map))
 
+
+(defun org-upcoming-modeline--encode-ts (ts)
+  "Turn a TS struct into an Emacs TIME value."
+  (encode-time (list (ts-second ts) (ts-minute ts) (ts-hour ts) (ts-day ts) (ts-month ts) (ts-year ts))))
+
+(defun org-upcoming-modeline--days-between (d1 d2)
+  "Count number of days occurring between D1 and earlier D2.
+Ignores any TZ/DST info."
+  (- (time-to-days (org-upcoming-modeline--encode-ts d1))
+     (time-to-days (org-upcoming-modeline--encode-ts d2))))
+
+(defun org-upcoming-modeline--format-ts (time now)
+  "Human readable description of time left until TIME for display in mode-line.
+NOW should be `ts-now' (an argument for ease of testing)."
+  (let* ((seconds-until (ts-difference time now))
+         (days-until (org-upcoming-modeline--days-between time now)))
+    (cond ((ts< time now)
+           (concat "-" (ts-human-format-duration (- seconds-until) 'abbreviate)))
+          ((<= seconds-until org-upcoming-modeline-duration-threshold) ; "1m32s"
+           (ts-human-format-duration seconds-until 'abbreviate))
+          ((= days-until 0)             ; "7:45"
+           (ts-format "%H:%M" time))
+          ((= days-until 1)             ; "tomorrow 7:45"
+           (concat (cdr (assoc 'tomorrow org-upcoming-modeline-l10n))
+                   (ts-format " %H:%M" time)))
+          ((< days-until 7)             ; "Fri 7:45"
+           (ts-format "%a %H:%M" time))
+          ((< days-until 28)            ; "Fri 7, 7:45"
+           (ts-format "%a %-e, %H:%M" time))
+          ((< days-until 365)           ; "7 July, 7:45"
+           ;; TODO: would like to have "%x %X" but without year and timezone
+           (ts-format "%-e %b %H:%M" time))
+          (t
+           (ts-format "%-e %b %Y, %H:%M" time)))))
+
 (defun org-upcoming-modeline--set-string ()
   "Set the modeline string to the next upcoming event.
 Sets `org-upcoming-modeline-string' based on
@@ -167,21 +202,10 @@ Sets `org-upcoming-modeline-string' based on
   (setq
    org-upcoming-modeline-string
    (when org-upcoming-modeline--current-event
-     (pcase-let* ((now (ts-now))
-                  (`(,time ,heading ,marker) org-upcoming-modeline--current-event)
+     (pcase-let* ((`(,time ,heading ,marker) org-upcoming-modeline--current-event)
+                  (now (ts-now))
                   (seconds-until (ts-difference time now))
-                  ;; NOTE: Using day of year to avoid end-of-month turnover in day number.
-                  (days-until (- (ts-doy time)
-                                 (ts-doy now)))
-                  (time-string (cond ((<= seconds-until org-upcoming-modeline-duration-threshold)
-                                      (ts-human-format-duration seconds-until 'abbreviate))
-                                     ((= 0 days-until)
-                                      (ts-format "%H:%M" time))
-                                     ((= 1 days-until)
-                                      (concat (cdr (assoc 'tomorrow org-upcoming-modeline-l10n))
-                                              (ts-format " %H:%M" time)))
-                                     (t      ; > 1 days-until
-                                      (ts-format "%a %H:%M" time)))))
+                  (time-string (org-upcoming-modeline--format-ts time now)))
        (propertize (funcall org-upcoming-modeline-format
                             time-string
                             (org-upcoming-modeline--trim heading))
