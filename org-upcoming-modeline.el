@@ -64,7 +64,7 @@ Returns nil if no hour/minute part."
   :group 'org-upcoming-modeline
   :type 'integer)
 
-(defcustom org-upcoming-modeline-keep-late 3600
+(defcustom org-upcoming-modeline-keep-late 900
   "Show this many seconds after the event has begun, unless we're clocked into it."
   :group 'org-upcoming-modeline
   :type 'integer)
@@ -206,7 +206,7 @@ Store it in `org-upcoming-modeline--current-event'."
   (setq
    org-upcoming-modeline--current-event
    (when-let*
-       ((start-time (ts-adjust 'minute (- 15)
+       ((start-time (ts-adjust 'second (- org-upcoming-modeline-keep-late)
                                (ts-now)))
         (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
                              (ts-now)))
