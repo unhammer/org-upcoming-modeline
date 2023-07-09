@@ -21,8 +21,8 @@ If you use [[https://melpa.org/][MELPA]], you can do =M-x list-packages=, find
 ** Manual
 Just put =org-upcoming-modeline.el= somewhere in =load-path=.
 
-* Usage
-
+* Configuration
+** Basic
 #+begin_src emacs-lisp
   (use-package org-upcoming-modeline
     :after org                               ; if you don't want it to start until org has been loaded
@@ -30,8 +30,31 @@ Just put =org-upcoming-modeline.el= somewhere in =load-path=.
     :config
     (org-upcoming-modeline-mode))
 #+end_src
+** Advanced
+You can generate a description of all the avaiable functionalites and display it from GNU Emacs by doing =M-x customize-group RET org-upcoming-modeline=.
 
-See also =M-x customize-group RET org-upcoming-modeline=.
+Here is a non-exhaustive list of some =org-upcoming-modeline= functionalities:
+
+- =org-upcoming-modeline-ignored-keywords=  allows you to exclude TODO states.
+  Example excluding "BACKLOG" and "NEXT" states:
+  #+begin_src emacs-lisp 
+    (setq org-upcoming-modeline-ignored-keywords '("BACKLOG" "NEXT")
+  #+end_src
+- =org-upcoming-modeline-format= allows you to modify the displaying format of the elements around the appointment time (=time-string=)  and the appointment title (=heading=).
+  Example replacing the alarm clock icon with a calendar icon, and replacing =:= with =-=:
+  #+begin_src emacs-lisp 
+    (setq org-upcoming-modeline-format (lambda (ms mh) (format "🗓 %s - %s" ms mh)))
+  #+end_src
+- =org-upcoming-modeline-days-ahead= allows you to fix the number of days to look into the future (1 by default).
+  Example looking for 15 days ahead:
+  #+begin_src emacs-lisp 
+    (setq org-upcoming-modeline-days-ahead 15)
+  #+end_src
+- =org-upcoming-modeline-trim= allows you to fix the number of characters displayed for the appointment title (=heading=), it is 20 by default.
+  Exemple removing the trimming:
+  #+begin_src emacs-lisp 
+    (setq org-upcoming-modeline-trim nil)
+  #+end_src
 
 * Related packages
 
