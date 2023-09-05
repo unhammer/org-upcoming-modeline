@@ -226,17 +226,20 @@ Used as default for `org-upcoming-modeline-format'."
 
 (defun org-upcoming-modeline--find-event ()
   "Find the first upcoming org event, with timestamp and marker.
-Store it in `org-upcoming-modeline--current-event'."
+Store it in `org-upcoming-modeline--current-event'.
+
+Does nothing if `org-agenda-files' is nil."
   (setq
    org-upcoming-modeline--current-event
    (when-let*
-       ((start-time (ts-adjust 'second (- org-upcoming-modeline-keep-late)
+       ((org-files (org-agenda-files))
+        (start-time (ts-adjust 'second (- org-upcoming-modeline-keep-late)
                                (ts-now)))
         (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
                              (ts-now)))
         (items (remove
                 nil
-                (org-ql-select (org-agenda-files)
+                (org-ql-select org-files
                   `(and (ts-upcoming :from ,start-time
                                      :to ,end-time)
                         (not ,@(if org-upcoming-modeline-ignored-keywords
