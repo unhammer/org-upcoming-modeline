@@ -376,6 +376,15 @@ Fallback to marker of `org-upcoming-modeline-string'."
     (org-cycle-hide-drawers 'children)
     (org-reveal)))
 
+(defun org-upcoming-modeline-show-in-agenda (event)
+  "Show upcoming org EVENT in daily agenda."
+  (interactive "e")
+  (when-let* ((time (car org-upcoming-modeline--current-event)))
+    (org-agenda-list nil
+                     (ts-format "%Y-%m-%d" (car org-upcoming-modeline--current-event))
+                     'day
+                     'with-hour)))
+
 (defun org-upcoming-modeline-clock-in (event)
   "Clock in to upcoming org EVENT."
   (interactive "e")
@@ -400,6 +409,7 @@ Fallback to marker of `org-upcoming-modeline-string'."
   '(
     "Org Upcoming Modeline"
     ["Go to event" org-upcoming-modeline-goto]
+    ["Show in agenda" org-upcoming-modeline-show-in-agenda]
     ["Snooze for five minutes" org-upcoming-modeline-snooze]
     ["Clock in" org-upcoming-modeline-clock-in]))
 
