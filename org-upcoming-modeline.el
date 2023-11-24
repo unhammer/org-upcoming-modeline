@@ -123,7 +123,7 @@ No trimming if set to nil."
   "Org Upcoming Modeline face for when an event is coming up soon."
   :group 'org-upcoming-modeline)
 
-(defcustom org-upcoming-modeline-snooze-seconds (* 5 60)
+(defcustom org-upcoming-modeline-snooze-default-minutes 5
   "How long to snooze when mouse-2-clicking the modeline.
 Used by `org-upcoming-modeline-snooze'."
   :group 'org-upcoming-modeline
@@ -395,22 +395,24 @@ Fallback to marker of `org-upcoming-modeline-string'."
        (org-clock-in)))))
 
 (defun org-upcoming-modeline-snooze (_event)
-  "Hide it for five minutes, ignore EVENT."
-  (interactive "e")
-  (message "Disabling org-upcoming-modeline for five minutes")
-  (org-upcoming-modeline--disable)
-  (force-mode-line-update)
-  (run-with-timer org-upcoming-modeline-snooze-seconds
-                  nil
-                  (lambda () (when org-upcoming-modeline-mode
-                          (org-upcoming-modeline--enable)))))
+  "Hide it for some minutes, ignore EVENT."
+  (interactive "eP")
+  (let ((minutes (read-number "How many minutes to snooze? "
+                              org-upcoming-modeline-snooze-default-minutes)))
+    (message "Disabling org-upcoming-modeline for %s minutes" minutes)
+    (org-upcoming-modeline--disable)
+    (force-mode-line-update)
+    (run-with-timer (* 60 minutes)
+                    nil
+                    (lambda () (when org-upcoming-modeline-mode
+                            (org-upcoming-modeline--enable))))))
 
 (easy-menu-define org-upcoming-modeline--menu nil "Dynamic Menu."
   '(
     "Org Upcoming Modeline"
     ["Go to event" org-upcoming-modeline-goto]
     ["Show in agenda" org-upcoming-modeline-show-in-agenda]
-    ["Snooze for five minutes" org-upcoming-modeline-snooze]
+    ["Snooze" org-upcoming-modeline-snooze]
     ["Clock in" org-upcoming-modeline-clock-in]))
 
 (defun org-upcoming-modeline-popup-menu (event &optional prefix)
