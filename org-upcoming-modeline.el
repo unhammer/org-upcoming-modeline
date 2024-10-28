@@ -106,6 +106,11 @@ No trimming if set to nil."
   :group 'org-upcoming-modeline
   :type '(repeat string))
 
+(defcustom org-upcoming-modeline-ignored-tags nil
+  "Ignore entries with at least one of these tags."
+  :group 'org-upcoming-modeline
+  :type '(repeat string))
+
 (defcustom org-upcoming-modeline-format #'org-upcoming-modeline-default-format
   "A function to turn time-string and heading into a mode-line string."
   :group 'org-upcoming-modeline
@@ -242,6 +247,9 @@ Does nothing if `org-agenda-files' is nil."
                 (org-ql-select org-files
                   `(and (ts-upcoming :from ,start-time
                                      :to ,end-time)
+                        (not ,@(if org-upcoming-modeline-ignored-tags
+                                   `((tags ,@org-upcoming-modeline-ignored-tags))
+                                 '(nil)))
                         (not ,@(if org-upcoming-modeline-ignored-keywords
                                    `((todo ,@org-upcoming-modeline-ignored-keywords))
                                  '(nil))))
