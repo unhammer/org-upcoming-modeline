@@ -77,4 +77,19 @@
     (should (equal (org-upcoming-modeline--format-ts  in60days now)  "29 Feb 10:00"))
     (should (equal (org-upcoming-modeline--format-ts  in1year now)   "31 Dec 2000, 10:00"))))
 
+(ert-deftest org-upcoming-modeline-pick-upcoming ()
+  (let* ((now (make-ts :hour 10 :minute 0 :day 1 :month 1 :year 2000))
+         (soon (list (ts-adjust 'minute 10 now) 'soon))
+         (later (list (ts-adjust 'minute 30 now) 'later)))
+    (let ((org-upcoming-modeline-only-show-soon nil))
+      (should (eq (cadr (org-upcoming-modeline--pick-upcoming
+                         (list later soon) now))
+                  'soon)))
+    (let ((org-upcoming-modeline-only-show-soon t)
+          (org-upcoming-modeline-soon (* 15 60)))
+      (should (eq (cadr (org-upcoming-modeline--pick-upcoming
+                         (list later soon) now))
+                  'soon))
+      (should-not (org-upcoming-modeline--pick-upcoming (list later) now)))))
+
 (provide 'org-upcoming-modeline-test)
