@@ -96,6 +96,12 @@ No trimming if set to nil."
   :group 'org-upcoming-modeline
   :type 'integer)
 
+(defcustom org-upcoming-modeline-only-show-soon nil
+  "Whether to only show events considered close.
+The duration used is `org-upcoming-modeline-soon'."
+  :group 'org-upcoming-modeline
+  :type 'boolean)
+
 (defcustom org-upcoming-modeline-soon (* 15 60)
   "Number of seconds to consider an upcoming event \"close\"."
   :group 'org-upcoming-modeline
@@ -229,6 +235,14 @@ Sets `org-upcoming-modeline-string' based on
 Used as default for `org-upcoming-modeline-format'."
   (format " ⏰ %s: %s" time-string heading))
 
+(defun org-upcoming-modeline--pick-upcoming (items now)
+  "Pick the first event from ITEMS that should be shown at NOW."
+  (when-let* ((first (car (seq-sort-by #'car #'ts< items))))
+    (when (or (not org-upcoming-modeline-only-show-soon)
+              (<= (ts-difference (car first) now)
+                  org-upcoming-modeline-soon))
+      first)))
+
 (defun org-upcoming-modeline--find-event ()
   "Find the first upcoming org event, with timestamp and marker.
 Store it in `org-upcoming-modeline--current-event'.
@@ -238,10 +252,11 @@ Does nothing if `org-agenda-files' is nil."
    org-upcoming-modeline--current-event
    (when-let*
        ((org-files (org-agenda-files))
+        (now (ts-now))
         (start-time (ts-adjust 'second (- org-upcoming-modeline-keep-late)
-                               (ts-now)))
+                               now))
         (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
-                             (ts-now)))
+                             now))
         (items (remove
                 nil
                 (org-ql-select org-files
@@ -268,9 +283,10 @@ Does nothing if `org-agenda-files' is nil."
                                                                          (ts<= ,start-time time))
                                                                collect time)
                                                       #'ts<)))))
-                             (list time mark))))))
+                             (list time mark)))))
+        (picked (org-upcoming-modeline--pick-upcoming items now)))
      (pcase-let*
-         ((`(,time ,marker . nil) (car (seq-sort-by #'car #'ts< items)))
+         ((`(,time ,marker . nil) picked)
           (heading (org-with-point-at marker
                      (org-link-display-format (nth 4 (org-heading-components))))))
        (list time heading marker)))))
