@@ -92,4 +92,58 @@
                   'soon))
       (should-not (org-upcoming-modeline--pick-upcoming (list later) now)))))
 
+(defun org-upcoming-modeline-test--event (start-h start-m end-h end-m)
+  "Make a test event starting at START-H:START-M and ending at END-H:END-M."
+  (let ((start (make-ts :hour start-h :minute start-m :second 0
+                        :day 1 :month 1 :year 2000)))
+    (list start
+          (and end-h (ts-apply :hour end-h :minute end-m start))
+          start-h)))
+
+(ert-deftest org-upcoming-modeline-pick-running-event ()
+  (let* ((org-upcoming-modeline-show-running t)
+         (org-upcoming-modeline-only-show-soon t)
+         (org-upcoming-modeline-soon (* 15 60))
+         (events (list (org-upcoming-modeline-test--event 10 0 11 30)
+                       (org-upcoming-modeline-test--event 12 0 13 0)))
+         (at (lambda (hour minute)
+               (org-upcoming-modeline--pick-event
+                events (make-ts :hour hour :minute minute :second 0
+                                :day 1 :month 1 :year 2000)))))
+    (should (equal (funcall at 10 30) (list (nth 1 (car events)) 10 t)))
+    (should-not (funcall at 11 40))
+    (should (equal (funcall at 11 50) (list (car (cadr events)) 12 nil)))))
+
+(ert-deftest org-upcoming-modeline-upcoming-event-takes-precedence ()
+  (let* ((org-upcoming-modeline-show-running t)
+         (org-upcoming-modeline-only-show-soon t)
+         (org-upcoming-modeline-soon (* 15 60))
+         (events (list (org-upcoming-modeline-test--event 10 0 11 30)
+                       (org-upcoming-modeline-test--event 11 20 12 0)))
+         (now (make-ts :hour 11 :minute 10 :second 0
+                       :day 1 :month 1 :year 2000)))
+    (should (equal (org-upcoming-modeline--pick-event events now)
+                   (list (car (cadr events)) 11 nil)))))
+
+(ert-deftest org-upcoming-modeline-show-running-default-preserves-behavior ()
+  (let* ((org-upcoming-modeline-show-running nil)
+         (org-upcoming-modeline-only-show-soon nil)
+         (event (org-upcoming-modeline-test--event 10 0 11 30))
+         (now (make-ts :hour 10 :minute 30 :second 0
+                       :day 1 :month 1 :year 2000)))
+    (should (equal (org-upcoming-modeline--pick-event (list event) now)
+                   (list (car event) 10 nil)))))
+
+(ert-deftest org-upcoming-modeline-range-end ()
+  (let ((start (make-ts :hour 10 :minute 0 :second 0
+                        :day 5 :month 5 :year 2024)))
+    (should (equal (ts-format "%H:%M" (org-upcoming-modeline--range-end
+                                      "<2024-05-05 Sun 10:00-11:30>" start))
+                   "11:30"))
+    (should (equal (ts-format "%F %H:%M" (org-upcoming-modeline--range-end
+                                          "<2024-05-05 Sun 23:00-01:00>" start))
+                   "2024-05-06 01:00"))
+    (should-not (org-upcoming-modeline--range-end
+                 "<2024-05-05 Sun 10:00>" start))))
+
 (provide 'org-upcoming-modeline-test)

@@ -102,6 +102,17 @@ The duration used is `org-upcoming-modeline-soon'."
   :group 'org-upcoming-modeline
   :type 'boolean)
 
+(defcustom org-upcoming-modeline-show-running nil
+  "Whether to show a running event when no upcoming event is shown.
+An event is running when the current time falls within its time range."
+  :group 'org-upcoming-modeline
+  :type 'boolean)
+
+(defcustom org-upcoming-modeline-running-lookback (* 8 3600)
+  "How many seconds back to look for a running event."
+  :group 'org-upcoming-modeline
+  :type 'integer)
+
 (defcustom org-upcoming-modeline-soon (* 15 60)
   "Number of seconds to consider an upcoming event \"close\"."
   :group 'org-upcoming-modeline
@@ -147,6 +158,10 @@ Used by `org-upcoming-modeline-snooze'."
 
 (defvar org-upcoming-modeline--current-event nil
   "Value from last `org-upcoming-modeline--find-upcoming'.")
+
+(defvar org-upcoming-modeline-running-p nil
+  "Non-nil when the displayed event is currently running.
+Functions used as `org-upcoming-modeline-format' may consult this.")
 
 (defvar org-upcoming-modeline--find-event-timer nil)
 (defvar org-upcoming-modeline--set-string-timer nil)
@@ -223,7 +238,9 @@ Sets `org-upcoming-modeline-string' based on
                    'face (if (<= 0 seconds-until org-upcoming-modeline-soon)
                              'org-upcoming-modeline-soon-face
                            'org-upcoming-modeline-normal-face)
-                   'help-echo (format "%s left until %s (mouse-1: goto, mouse-2: snooze, mouse-3: menu)"
+                   'help-echo (format (if org-upcoming-modeline-running-p
+                                          "%s left of %s (mouse-1: goto, mouse-2: snooze, mouse-3: menu)"
+                                        "%s left until %s (mouse-1: goto, mouse-2: snooze, mouse-3: menu)")
                                       (ts-human-format-duration seconds-until)
                                       heading)
                    'org-upcoming-marker marker
@@ -232,8 +249,11 @@ Sets `org-upcoming-modeline-string' based on
 
 (defun org-upcoming-modeline-default-format (time-string heading)
   "Format TIME-STRING and HEADING as a string for displaying in the mode-line.
-Used as default for `org-upcoming-modeline-format'."
-  (format " ⏰ %s: %s" time-string heading))
+Used as default for `org-upcoming-modeline-format'.  Padded on both
+sides so adjacent entries in `global-mode-string' do not run together."
+  (format " %s %s: %s "
+          (if org-upcoming-modeline-running-p "▶" "⏰")
+          time-string heading))
 
 (defun org-upcoming-modeline--pick-upcoming (items now)
   "Pick the first event from ITEMS that should be shown at NOW."
@@ -243,17 +263,48 @@ Used as default for `org-upcoming-modeline-format'."
                   org-upcoming-modeline-soon))
       first)))
 
+(defun org-upcoming-modeline--range-end (org-ts-string start)
+  "Return the end of the time range in ORG-TS-STRING, relative to START."
+  (save-match-data
+    (when (string-match "[0-9]\\{1,2\\}:[0-9]\\{2\\}-\\([0-9]\\{1,2\\}\\):\\([0-9]\\{2\\}\\)"
+                        org-ts-string)
+      (let ((end (ts-apply :hour (string-to-number (match-string 1 org-ts-string))
+                           :minute (string-to-number (match-string 2 org-ts-string))
+                           :second 0 start)))
+        (if (ts<= end start) (ts-adjust 'day 1 end) end)))))
+
+(defun org-upcoming-modeline--pick-event (items now)
+  "Pick the event to display from ITEMS at NOW.
+Each item has the form (START END MARKER).  Return (TIME MARKER RUNNING-P)."
+  (if (not org-upcoming-modeline-show-running)
+      (when-let* ((event (org-upcoming-modeline--pick-upcoming items now)))
+        (list (car event) (nth 2 event) nil))
+    (let* ((items (seq-sort-by #'car #'ts< items))
+           (upcoming (org-upcoming-modeline--pick-upcoming
+                      (seq-filter (lambda (event) (ts< now (car event))) items)
+                      now))
+           (running (car (last (seq-filter
+                                (lambda (event)
+                                  (pcase-let ((`(,start ,end ,_) event))
+                                    (and end (ts<= start now) (ts< now end))))
+                                items)))))
+      (cond (upcoming (list (car upcoming) (nth 2 upcoming) nil))
+            (running (list (nth 1 running) (nth 2 running) t))))))
+
 (defun org-upcoming-modeline--find-event ()
   "Find the first upcoming org event, with timestamp and marker.
 Store it in `org-upcoming-modeline--current-event'.
 
 Does nothing if `org-agenda-files' is nil."
+  (setq org-upcoming-modeline-running-p nil)
   (setq
    org-upcoming-modeline--current-event
    (when-let*
        ((org-files (org-agenda-files))
         (now (ts-now))
-        (start-time (ts-adjust 'second (- org-upcoming-modeline-keep-late)
+        (start-time (ts-adjust 'second (- (if org-upcoming-modeline-show-running
+                                              org-upcoming-modeline-running-lookback
+                                            org-upcoming-modeline-keep-late))
                                now))
         (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
                              now))
@@ -271,7 +322,7 @@ Does nothing if `org-agenda-files' is nil."
                   :action `(when-let* ((mark (point-marker))
                                        (from-day (time-to-days (current-time)))
                                        (bound (save-excursion (outline-next-heading) (point)))
-                                       (time (save-excursion
+                                       (span (save-excursion
                                                (car
                                                 (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
                                                                for org-ts-string = (match-string 1)
@@ -281,14 +332,17 @@ Does nothing if `org-agenda-files' is nil."
                                                                                                                  #'org-upcoming-modeline--parse-ts)
                                                                when (and time
                                                                          (ts<= ,start-time time))
-                                                               collect time)
-                                                      #'ts<)))))
-                             (list time mark)))))
-        (picked (org-upcoming-modeline--pick-upcoming items now)))
+                                                               collect (list time
+                                                                             (org-upcoming-modeline--range-end
+                                                                              org-ts-string time)))
+                                                      (lambda (a b) (ts< (car a) (car b))))))))
+                             (append span (list mark))))))
+        (picked (org-upcoming-modeline--pick-event items now)))
      (pcase-let*
-         ((`(,time ,marker . nil) picked)
+         ((`(,time ,marker ,running-p) picked)
           (heading (org-with-point-at marker
                      (org-link-display-format (nth 4 (org-heading-components))))))
+       (setq org-upcoming-modeline-running-p running-p)
        (list time heading marker)))))
 
 
