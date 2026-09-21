@@ -225,6 +225,10 @@ NOW should be `ts-now' (an argument for ease of testing)."
   "Set the modeline string to the next upcoming event.
 Sets `org-upcoming-modeline-string' based on
 `org-upcoming-modeline--current-event'."
+  ;; Refresh at event boundaries to avoid negative countdowns.
+  (when (and org-upcoming-modeline--current-event
+             (ts<= (car org-upcoming-modeline--current-event) (ts-now)))
+    (org-upcoming-modeline--find-event))
   (setq
    org-upcoming-modeline-string
    (when org-upcoming-modeline--current-event
@@ -308,8 +312,8 @@ Does nothing if `org-agenda-files' is nil."
                                now))
         (end-time (ts-adjust 'day org-upcoming-modeline-days-ahead
                              now))
-        (items (remove
-                nil
+        (items (mapcan
+                #'identity
                 (org-ql-select org-files
                   `(and (ts-upcoming :from ,start-time
                                      :to ,end-time)
@@ -319,24 +323,21 @@ Does nothing if `org-agenda-files' is nil."
                         (not ,@(if org-upcoming-modeline-ignored-keywords
                                    `((todo ,@org-upcoming-modeline-ignored-keywords))
                                  '(nil))))
-                  :action `(when-let* ((mark (point-marker))
-                                       (from-day (time-to-days (current-time)))
-                                       (bound (save-excursion (outline-next-heading) (point)))
-                                       (span (save-excursion
-                                               (car
-                                                (sort (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
-                                                               for org-ts-string = (match-string 1)
-                                                               when org-ts-string
-                                                               for time = (org-upcoming-modeline--parse-upcoming org-ts-string
-                                                                                                                 from-day
-                                                                                                                 #'org-upcoming-modeline--parse-ts)
-                                                               when (and time
-                                                                         (ts<= ,start-time time))
-                                                               collect (list time
-                                                                             (org-upcoming-modeline--range-end
-                                                                              org-ts-string time)))
-                                                      (lambda (a b) (ts< (car a) (car b))))))))
-                             (append span (list mark))))))
+                  :action `(let ((mark (point-marker))
+                                 (from-day (time-to-days (current-time)))
+                                 (bound (save-excursion (outline-next-heading) (point))))
+                             (save-excursion
+                               (cl-loop while (re-search-forward org-tsr-regexp bound 'noerror)
+                                        for org-ts-string = (match-string 1)
+                                        when org-ts-string
+                                        for time = (org-upcoming-modeline--parse-upcoming
+                                                    org-ts-string from-day
+                                                    #'org-upcoming-modeline--parse-ts)
+                                        when (and time (ts<= ,start-time time))
+                                        collect (list time
+                                                      (org-upcoming-modeline--range-end
+                                                       org-ts-string time)
+                                                      mark)))))))
         (picked (org-upcoming-modeline--pick-event items now)))
      (pcase-let*
          ((`(,time ,marker ,running-p) picked)

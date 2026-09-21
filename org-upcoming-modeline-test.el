@@ -77,6 +77,47 @@
     (should (equal (org-upcoming-modeline--format-ts  in60days now)  "29 Feb 10:00"))
     (should (equal (org-upcoming-modeline--format-ts  in1year now)   "31 Dec 2000, 10:00"))))
 
+(ert-deftest org-upcoming-modeline-refreshes-expired-event-before-rendering ()
+  "An idle-timer delay must not expose a negative cached countdown."
+  (let* ((now (make-ts :hour 10 :minute 0 :second 5 :day 1 :month 1 :year 2000))
+         (old-time (ts-adjust 'second (- 5) now))
+         (new-time (ts-adjust 'minute 30 now))
+         (org-upcoming-modeline--current-event (list old-time "old" nil))
+         (org-upcoming-modeline-format (lambda (time heading)
+                                         (format "%s:%s" time heading)))
+         refreshed)
+    (cl-letf (((symbol-function 'ts-now) (lambda () now))
+              ((symbol-function 'org-upcoming-modeline--find-event)
+               (lambda ()
+                 (setq refreshed t
+                       org-upcoming-modeline--current-event
+                       (list new-time "current" nil)))))
+      (org-upcoming-modeline--set-string))
+    (should refreshed)
+    (should (equal (substring-no-properties org-upcoming-modeline-string)
+                   "30m:current"))))
+
+(ert-deftest org-upcoming-modeline-finds-later-timestamp-under-heading ()
+  (let ((file (make-temp-file "org-upcoming-modeline-" nil ".org"))
+        (now (make-ts :hour 17 :minute 50 :second 0
+                      :day 21 :month 9 :year 2026)))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "* Event\n"
+                    "<2026-09-21 Mon 15:00-16:00>\n"
+                    "<2026-09-21 Mon 17:45-18:30>\n"))
+          (let ((org-agenda-files (list file))
+                (org-upcoming-modeline-show-running t)
+                (org-upcoming-modeline-only-show-soon t))
+            (cl-letf (((symbol-function 'ts-now) (lambda () now)))
+              (org-upcoming-modeline--find-event))
+            (should org-upcoming-modeline-running-p)
+            (should (equal (ts-format "%H:%M"
+                                      (car org-upcoming-modeline--current-event))
+                           "18:30"))))
+      (delete-file file))))
+
 (ert-deftest org-upcoming-modeline-pick-upcoming ()
   (let* ((now (make-ts :hour 10 :minute 0 :day 1 :month 1 :year 2000))
          (soon (list (ts-adjust 'minute 10 now) 'soon))
